@@ -1,0 +1,81 @@
+---
+title: "Image examples"
+output: html_notebook
+---
+
+The aim of this project is to take some famous images and only 'represent' them through 'age', 'period' and 'cohort' effects.
+
+The specific tasks are: 
+
+* Find way to download some famous images
+* Load the images as matrices
+* Model the matrices as
+    * Age alone
+    * Period alone
+    * Cohort alone
+    * Age:Period
+    * Age:Cohort
+    * Age^{2}
+    * Period^{2}
+    * Cohort^{2}
+    * etc
+
+# Find images to download 
+
+
+
+```{r load_prereq}
+require(tidyverse)
+require(magick)
+```
+
+
+```{r load_images, eval = F}
+download.file(
+  "http://dujye7n3e5wjl.cloudfront.net/photographs/1080-tall/time-100-influential-photos-lunch-atop-skyscraper-19.jpg",
+  "images/image_01.jpg",
+  mode = "wb"
+)
+
+```
+
+Other possible images are [here](http://100photos.time.com/)
+
+
+Now to try to load this as a matrix 
+
+```{r read_images}
+image <- magick::image_read("images/image_01.jpg") %>% 
+  image_convert(type = "grayscale") # convert to grayscale
+
+```
+
+Rescale to 250 pixels wide
+
+
+```{r image_rescale}
+image_rescaled <- image_scale(image, "250")
+
+```
+
+
+EBImage looks like it's closer to R in that it uses class `Image` which extends `base::array`. 
+
+
+```{r read_image}
+ebimage <- EBImage::readImage("images/image_01.jpg")
+
+```
+
+
+```{r convert_to_grey}
+image_matrix <- apply(EBImage::imageData(ebimage_grey), c(1, 2), mean)
+
+```
+
+Convert matrix to dataframe
+
+```{r convert_to_df}
+
+
+```
