@@ -15,9 +15,9 @@ The specific tasks are:
     * Cohort alone
     * Age:Period
     * Age:Cohort
-    * Age^{2}
-    * Period^{2}
-    * Cohort^{2}
+    * Age^2^
+    * Period^2^
+    * Cohort^2^
     * etc
 
 # Find images to download 
@@ -25,8 +25,9 @@ The specific tasks are:
 
 
 ```{r load_prereq}
-require(tidyverse)
-require(magick)
+pacman::p_load(
+  tidyverse, magick
+)
 ```
 
 
@@ -46,36 +47,123 @@ Now to try to load this as a matrix
 
 ```{r read_images}
 image <- magick::image_read("images/image_01.jpg") %>% 
-  image_convert(type = "grayscale") # convert to grayscale
+  image_convert(type = "grayscale") %>% # convert to grayscale
+  image_scale("250") %>% #rescale to 250 pixels wide
+  image_data()
+
+image_mtrx <- image[1, 1:dim(image)[2], 1:dim(image)[3]]
+
+image_mtrx <- apply(image_mtrx, 1, as.integer)
+
 
 ```
 
-Rescale to 250 pixels wide
-
-
-```{r image_rescale}
-image_rescaled <- image_scale(image, "250")
-
-```
-
-
-EBImage looks like it's closer to R in that it uses class `Image` which extends `base::array`. 
-
-
-```{r read_image}
-ebimage <- EBImage::readImage("images/image_01.jpg")
-
-```
-
-
-```{r convert_to_grey}
-image_matrix <- apply(EBImage::imageData(ebimage_grey), c(1, 2), mean)
-
-```
 
 Convert matrix to dataframe
 
 ```{r convert_to_df}
+image_df <- image_mtrx %>% 
+  as_data_frame() %>% 
+  mutate(y = dim(.)[1]:1) %>% 
+  gather(key = "x", value = "value", -y) %>% 
+  mutate(x = stringr::str_replace(x, "V", "") %>% as.integer()) 
+
+```
+
+Now let's plot using ggplot2
+
+```{r show_image_as_df}
+image_df %>% 
+  ggplot(aes(x = x, y = y, fill = value)) + 
+  geom_tile()
+```
+
+
+Now let's start to model this data 
+
+```{r compare_models}
+
+mod_specs <- c(
+  age = "value ~ year",
+  year = "value ~ age", 
+  cohort = "value ~ cohort",
+  ap = "value ~ age*year",
+  ac = "value ~ age*cohort",
+  aa = "value ~ poly(age, 2)",
+  pp = "value ~ poly(year, 2)",
+  cc = "value ~ poly(cohort, 2)"
+) %>% enframe(name = "mod_name", value = "params")
+
+```
+
+```{r change_data}
+
+image_df <- image_df %>% 
+  rename(age = y, year = x) %>% 
+  mutate(cohort = age - year) %>% 
+  select(age, year, cohort, value) %>% 
+  mutate(value = value / max(value))
+
+
+```
+
+Now models
+
+```{r run_models}
+
+mods_fitted <- mod_specs %>% 
+  mutate(
+    model = map(params, function(x) {
+      lm(as.formula(x), data = image_df)
+      }
+    )
+  ) %>% 
+  mutate(aic = map_dbl(model, AIC)) %>% 
+  arrange(aic)
+
+
+```
+
+Now to calculate the fit surfaces  
+
+```{r calc_model_fits}
+
+get_fitted_values <- function(MDL, DTA){
+  out <- broom::augment(MDL, DTA) %>% 
+    as_data_frame()
+}
+
+mods_fitted <- mods_fitted %>% 
+  mutate(fitted_surface = map(model, get_fitted_values, DTA = image_df)) 
+
+```
+
+```{r show_model_fits }
+mods_fitted %>% 
+  select(mod_name, fitted_surface) %>% 
+  unnest() %>% 
+  ggplot(aes(x = year, y = age, fill = .fitted)) + 
+  geom_tile() + 
+  facet_wrap(~mod_name) +
+  scale_fill_gradientn("Fitted Value", colours = scales::brewer_pal(palette = "Paired")(12)) 
+
+```
+
+
+Now residuals
+
+```{r show_model_resids }
+mods_fitted %>% 
+  select(mod_name, fitted_surface) %>% 
+  unnest() %>% 
+  ggplot(aes(x = year, y = age, fill = .resid)) + 
+  geom_tile() + 
+  facet_wrap(~mod_name) +
+  scale_fill_gradientn(
+    "Residuals", 
+    limits = c(-0.6, 0.6),
+    colours = scales::brewer_pal(palette = "RdBu")(5)
+  )
 
 
 ```
