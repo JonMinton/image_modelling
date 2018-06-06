@@ -100,6 +100,9 @@ mod_specs <- c(
 
 image_df <- image_df %>% 
   rename(age = y, year = x) %>% 
+  mutate(age = age %/% 2) %>% # so max age around 100 not 200
+  group_by(age, year) %>% 
+  summarise(value = mean(value)) %>%
   mutate(cohort = age - year) %>% 
   select(age, year, cohort, value) %>% 
   mutate(value = value / max(value))
@@ -165,5 +168,22 @@ mods_fitted %>%
     colours = scales::brewer_pal(palette = "RdBu")(5)
   )
 
+
+```
+
+
+```{r show_image_itself_multi}
+image_df %>% 
+  ggplot(aes(x = year, y = age, fill = value)) +
+  geom_tile() +
+  scale_fill_gradientn("Fitted Value", colours = scales::brewer_pal(palette = "Paired")(12)) 
+
+```
+
+```{r show_image_itself_grey}
+image_df %>% 
+  ggplot(aes(x = year, y = age, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient("Fitted Value", low = "white", high = "black") 
 
 ```
