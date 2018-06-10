@@ -141,6 +141,27 @@ mods_fitted <- mods_fitted %>%
 
 ```
 
+Now an HAPC 
+
+```{r calc_hapc_model}
+image_df %>% 
+  ungroup() %>% 
+  mutate(value = (value - mean(value)) / sd(value)) %>% 
+  lme4::lmer(value ~ age + I(age^2) + (year | cohort), data = .) -> mod_hapc
+
+image_df %>% 
+  ungroup() %>% 
+  mutate(value = (value - mean(value)) / sd(value)) %>% 
+  lme4::lmer(value ~ age + I(age^2) + (1 | cohort), data = .) -> mod_hac
+
+image_df %>% 
+  ungroup() %>% 
+  mutate(value = (value - mean(value)) / sd(value)) %>% 
+  lme4::lmer(value ~ age + I(age^2) + (1 | year), data = .) -> mod_hap
+
+
+```
+
 ```{r show_model_fits }
 mods_fitted %>% 
   select(mod_name, fitted_surface) %>% 
